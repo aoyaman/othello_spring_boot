@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- css -->
+  <link th:href="@{/css/home.css}" rel="stylesheet">
+
+  <title>Othello by Spring Boot</title>
+
+</head>
+
+<body>
+  <div class="container">
+    <h1>Othello <small>by Spring Boot</small></h1>
+
+
+    <table class="table">
+      <tr th:each="row : ${list}">
+        <td th:each="item : ${row}">
+          <div th:switch="${item.getColor().toString()}">
+            <div th:case="BLACK" class="cell stone-black">●</div>
+            <div th:case="WHITE" class="cell stone-white">●</div>
+            <div th:case="BLANK" class="cell" th:classappend="${item.getNext().toString().equals('BLANK') == false} ? 'next-ok' : 'next-ng'">
+              <a th:if="${item.getNext().toString().equals('BLANK') == false}" th:href="${item.getNextHref()}">　</a>
+              <span th:unless="${item.getNext().toString().equals('BLANK') == false}" >　</span>
+            </div>
+            <div th:case="WALL" class="wall " th:text="${item.getAddress()}"></div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+
+</html>
