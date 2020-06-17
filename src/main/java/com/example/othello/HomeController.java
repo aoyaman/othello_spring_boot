@@ -2,6 +2,7 @@ package com.example.othello;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -20,10 +21,14 @@ public class HomeController {
 
     List<List<Cell>> list;
     StoneColor nowStone = StoneColor.BLACK;
-    StoneColor nextStone = StoneColor.WHITE;
+    String beforeMessage = null;
+    String afterMessage = null;
 
     // パラメータがセットされていない場合
     if (strList == null || strList.length() <= 0 || x == 0 || y == 0 || stone.length() <= 0) {
+
+      // メッセージ
+      beforeMessage = "さぁ、オセロを始めましょう。あなたが黒です。";
 
       list = new ArrayList<List<Cell>>();
       for (int i = 0; i < 10; i++) {
@@ -57,42 +62,109 @@ public class HomeController {
 
       nowStone = StoneColor.valueOf(stone);
 
-      // 石を置き、挟んだ石をひっくり返す
-      if (checkPiece(x, y, list, nowStone, true)) {
+      if (x == 9 && y == 9) {
+        // パスだったら
+        beforeMessage = nowStone + "はパスしました";
 
-        // 石を置く
-        list.get(y).get(x).setColor(nowStone);
+        // 次の石にする
+        nowStone = nowStone == StoneColor.BLACK ? StoneColor.WHITE : StoneColor.BLACK;
+      } else {
+        // パスじゃなかったら
 
-        // 次の石
-        if (nowStone == StoneColor.BLACK) {
-          nowStone = StoneColor.WHITE;
+        // 石を置き、挟んだ石をひっくり返す
+        if (checkPiece(x, y, list, nowStone, true) > 0) {
+          // メッセージ
+          beforeMessage = nowStone + "が" + list.get(y).get(x).getAddress() + "に置かれました";
+
+          // 石を置く
+          list.get(y).get(x).setColor(nowStone);
+
+          // 次の石
+          if (nowStone == StoneColor.BLACK) {
+            nowStone = StoneColor.WHITE;
+          } else {
+            nowStone = StoneColor.BLACK;
+          }
         } else {
-          nowStone = StoneColor.BLACK;
+          // メッセージ
+          beforeMessage = nowStone + "は" + Cell.columns[x] + y + "に置けません！";
+
         }
+
+        // 文字列化
+        strList = list2Str(list);
       }
 
-      // 文字列化
-      strList = list2Str(list);
 
 
     }
+
 
     // 石を置ける場所を探索する
+    List<Cell> cells = new ArrayList<Cell>();
+    int countBlank = 0, countBlack = 0, countWhite = 0;
     for (y = 1; y < ９; y++) {
       for (x = 1; x < ９; x++) {
-        if (list.get(y).get(x).getColor() == StoneColor.BLANK) {
-          if (checkPiece(x, y, list, nowStone, false)) {
-            list.get(y).get(x).setNext(nowStone);
-            list.get(y).get(x).setNextHref("?x=" + x + "&y=" + y + "&stone=" + nowStone.toString() + "&list=" + strList);
+        Cell cell = list.get(y).get(x);
+        if (cell.getColor() == StoneColor.BLANK) {
+          countBlank++;
+          int countPlace = checkPiece(x, y, list, nowStone, false);
+          if (countPlace > 0) {
+            cells.add(cell);
+            cell.setNext(nowStone);
+            cell.setNextHref("?x=" + x + "&y=" + y + "&stone=" + nowStone.toString() + "&list=" + strList);
+            cell.setCountPlace(countPlace);
           }
+        } else if (cell.getColor() == StoneColor.BLACK) {
+          countBlack++;
+        } if (cell.getColor() == StoneColor.WHITE) {
+          countWhite++;
         }
+
       }
     }
 
+    if (countBlank == 0) {
+      afterMessage = "ゲーム終了！ ";
+      model.addAttribute("clear", true);
+    } else {
+      model.addAttribute("clear", false);
+
+      if (nowStone == StoneColor.WHITE) {
+        afterMessage = "白が検討中です・・・";
+      } else {
+        afterMessage = "あなた(黒)の番です";
+      }
+
+      // 置ける場所があったら
+      if (cells.isEmpty() == false) {
+        model.addAttribute("pass", false);
+        if (nowStone == StoneColor.WHITE) {
+          model.addAttribute("autoUrl", calcNextStone(cells).getNextHref());
+        } else {
+          model.addAttribute("autoUrl", calcNextStone2(cells).getNextHref());
+        }
+      } else {
+        // パスする。
+        model.addAttribute("pass", true);
+        model.addAttribute("autoUrl", "?x=9&y=9&stone=" + nowStone.toString() + "&list=" + strList);
+      }
+
+    }
+
+    model.addAttribute("beforeMessage", beforeMessage);
+    model.addAttribute("afterMessage", afterMessage);
+    model.addAttribute("statusMessage", "Black=" + countBlack + ", White=" + countWhite);
+
+    model.addAttribute("nowStone", nowStone.toString());
     model.addAttribute("list", list);
 
     return "home";
   }
+
+  /**
+   * リストを文字列に変換する関数
+   */
   private String list2Str(List<List<Cell>> list) {
     String ret = "";
     for (int i = 0; i < 10; i++) {
@@ -114,6 +186,10 @@ public class HomeController {
     }
     return ret;
   }
+
+  /**
+   * 文字列をリストに変換する関数
+   */
   private List<List<Cell>> str2list(String str) {
     List<List<Cell>> ret = new ArrayList<List<Cell>>();
     String[] rows = str.split(";");
@@ -133,7 +209,10 @@ public class HomeController {
     return ret;
   }
 
-  private boolean checkPiece(int x, int y, List<List<Cell>> list, StoneColor nowTurn, boolean flip) {
+  /**
+   * 指定した場所に指定した色が置けるかどうかのチェック関数。flip=trueを指定すると置き換えも行う
+   */
+  private int checkPiece(int x, int y, List<List<Cell>> list, StoneColor nowTurn, boolean flip) {
     int ret = 0;
     StoneColor nextTern = nowTurn == StoneColor.BLACK ? StoneColor.WHITE : StoneColor.BLACK;
 
@@ -169,6 +248,74 @@ public class HomeController {
       }
     }
 
-    return ret > 0;
+    return ret;
+  }
+
+  /**
+   * 置く場所を計算して返す関数
+   */
+  private Cell calcNextStone(List<Cell> cells) {
+    if (cells == null || cells.size() <= 0) {
+      return null;
+    }
+    int min = 99;
+    Cell minCell = null;
+    List<Cell> dengerCelsl = new ArrayList<Cell>();
+    for (Cell cell : cells) {
+
+
+      switch (cell.getAddress()) {
+        // 四隅は最優先
+        case "A1":  return cell;
+        case "A8":  return cell;
+        case "H1":  return cell;
+        case "H8":  return cell;
+
+        // 置きたくない場所
+        case "A2":
+        case "A7":
+        case "B1":
+        case "B2":
+        case "B7":
+        case "B8":
+        case "G1":
+        case "G2":
+        case "G7":
+        case "G8":
+        case "H2":
+        case "H7":
+          dengerCelsl.add(cell);
+          break;
+
+        default:
+          // ひっくり返せる数が少ないのを探す
+          if (cell.getCountPlace() < min) {
+            minCell =  cell;
+            min = minCell.getCountPlace();
+          }
+          break;
+      }
+
+
+    }
+    // 置きたくない場所以外の、ひっくり返せる数が最小の位置を返す
+    if (minCell != null) {
+      return minCell;
+    }
+
+    // 置きたくない場所しかない場合は、適当に戦闘のものを返す
+    return dengerCelsl.get(0);
+  }
+
+  /**
+   * 置く場所を計算して返す関数（適当バージョン）
+   */
+  private Cell calcNextStone2(List<Cell> cells) {
+    if (cells == null || cells.size() <= 0) {
+      return null;
+    }
+    Random random = new Random();
+    int randomValue = random.nextInt(cells.size());
+    return cells.get(randomValue);
   }
 }

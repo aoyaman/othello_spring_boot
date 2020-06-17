@@ -14,25 +14,46 @@
 
 <body>
   <div class="container">
-    <h1>Othello <small>by Spring Boot</small></h1>
 
+    <div class="center-contents">
+      <h1>Othello <small>by Spring Boot</small></h1>
 
-    <table class="table">
-      <tr th:each="row : ${list}">
-        <td th:each="item : ${row}">
-          <div th:switch="${item.getColor().toString()}">
-            <div th:case="BLACK" class="cell stone-black">●</div>
-            <div th:case="WHITE" class="cell stone-white">●</div>
-            <div th:case="BLANK" class="cell" th:classappend="${item.getNext().toString().equals('BLANK') == false} ? 'next-ok' : 'next-ng'">
-              <a th:if="${item.getNext().toString().equals('BLANK') == false}" th:href="${item.getNextHref()}">　</a>
-              <span th:unless="${item.getNext().toString().equals('BLANK') == false}" >　</span>
+      <p th:text="${beforeMessage}"></p>
+
+      <table class="table">
+        <tr th:each="row : ${list}">
+          <td th:each="item : ${row}">
+            <div th:switch="${item.getColor().toString()}">
+              <div th:case="BLACK" class="cell stone-black">●</div>
+              <div th:case="WHITE" class="cell stone-white">●</div>
+              <div th:case="BLANK" class="cell" th:classappend="${item.getNext().toString().equals('BLANK') == false} ? 'next-ok' : 'next-ng'">
+                <a th:if="${item.getNext().toString().equals('BLANK') == false}" th:href="${item.getNextHref()}">　</a>
+                <span th:unless="${item.getNext().toString().equals('BLANK') == false}" >　</span>
+              </div>
+              <div th:case="WALL" class="wall " th:text="${item.getAddress()}"></div>
             </div>
-            <div th:case="WALL" class="wall " th:text="${item.getAddress()}"></div>
-          </div>
-        </td>
-      </tr>
-    </table>
+          </td>
+        </tr>
+      </table>
+
+      <p th:text="${afterMessage}"></p>
+      <p th:text="${statusMessage}"></p>
+      <p th:if="${clear}"><a href="/">ゲームを最初から行う</a></p>
+    </div>
   </div>
+
+  <script th:inline="javascript">
+    var timerFunc = function() {
+      console.log('timer!');
+      var autoUrl = /*[[${autoUrl}]]*/ null;
+      var nowStone = /*[[${nowStone}]]*/ null;
+      var debug = true;
+      if (autoUrl && (nowStone == "WHITE" || debug)) {
+        window.location.href = autoUrl;;
+      }
+    }
+    setTimeout(timerFunc, 3000);
+  </script>
 </body>
 
 </html>
